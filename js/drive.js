@@ -122,6 +122,7 @@ const Drive = (() => {
 
     /**
      * Get folder IDs for Today and History folders for a store
+     * Searches in Dashboard/Today, Dashboard/History, Dashboard/Admin/Today, Dashboard/Admin/History
      */
     async function getStoreFolders(storeName) {
         const dashboardId = folderCache.get(`dashboard_${storeName}`);
@@ -149,6 +150,30 @@ const Drive = (() => {
             folderCache.set(`history_${storeName}`, result.historyId);
         }
 
+        // Find Admin folder and its Today/History subfolders
+        const adminResult = await search(
+            `'${dashboardId}' in parents and name = 'Admin' and mimeType = '${FOLDER_MIME}' and trashed = false`
+        );
+        if (adminResult.files && adminResult.files.length > 0) {
+            const adminId = adminResult.files[0].id;
+
+            // Find Admin/Today folder
+            const adminTodayResult = await search(
+                `'${adminId}' in parents and name = 'Today' and mimeType = '${FOLDER_MIME}' and trashed = false`
+            );
+            if (adminTodayResult.files && adminTodayResult.files.length > 0) {
+                folderCache.set(`admin_today_${storeName}`, adminTodayResult.files[0].id);
+            }
+
+            // Find Admin/History folder
+            const adminHistoryResult = await search(
+                `'${adminId}' in parents and name = 'History' and mimeType = '${FOLDER_MIME}' and trashed = false`
+            );
+            if (adminHistoryResult.files && adminHistoryResult.files.length > 0) {
+                folderCache.set(`admin_history_${storeName}`, adminHistoryResult.files[0].id);
+            }
+        }
+
         return result;
     }
 
@@ -168,20 +193,25 @@ const Drive = (() => {
 
     /**
      * List available dates (JSON files) for a store
-     * Includes daily, weekly, and monthly files
+     * Includes daily, weekly, and monthly files from all folders
      */
     async function listAvailableDates(storeName) {
         const todayId = folderCache.get(`today_${storeName}`);
         const historyId = folderCache.get(`history_${storeName}`);
+        const adminTodayId = folderCache.get(`admin_today_${storeName}`);
+        const adminHistoryId = folderCache.get(`admin_history_${storeName}`);
 
         const dates = new Set();
-        const allFiles = [];
 
-        // Get files from Today and History folders
-        const todayFiles = await listJsonFiles(todayId);
-        const historyFiles = await listJsonFiles(historyId);
+        // Get files from all folders in parallel
+        const [todayFiles, historyFiles, adminTodayFiles, adminHistoryFiles] = await Promise.all([
+            listJsonFiles(todayId),
+            listJsonFiles(historyId),
+            listJsonFiles(adminTodayId),
+            listJsonFiles(adminHistoryId)
+        ]);
 
-        allFiles.push(...todayFiles, ...historyFiles);
+        const allFiles = [...todayFiles, ...historyFiles, ...adminTodayFiles, ...adminHistoryFiles];
 
         // Extract dates from filenames (daily files only for calendar display)
         allFiles.forEach(file => {
@@ -196,35 +226,59 @@ const Drive = (() => {
     }
 
     /**
-     * Find a file in Today or History folders
+     * Find a file in a specific folder
+     */
+    async function findFileInFolder(folderId, filename) {
+        if (!folderId) return null;
+
+        const result = await search(
+            `'${folderId}' in parents and name = '${filename}' and trashed = false`,
+            'files(id,name)'
+        );
+
+        return (result.files && result.files.length > 0) ? result.files[0] : null;
+    }
+
+    /**
+     * Find a file in Today, History, Admin/Today, or Admin/History folders
      */
     async function findFile(storeName, filename) {
         const todayId = folderCache.get(`today_${storeName}`);
         const historyId = folderCache.get(`history_${storeName}`);
+        const adminTodayId = folderCache.get(`admin_today_${storeName}`);
+        const adminHistoryId = folderCache.get(`admin_history_${storeName}`);
 
-        // Try Today folder first
-        if (todayId) {
-            const todaySearch = await search(
-                `'${todayId}' in parents and name = '${filename}' and trashed = false`,
-                'files(id,name)'
-            );
-            if (todaySearch.files && todaySearch.files.length > 0) {
-                return todaySearch.files[0];
-            }
-        }
+        // Search all folders in parallel
+        const [todayFile, historyFile, adminTodayFile, adminHistoryFile] = await Promise.all([
+            findFileInFolder(todayId, filename),
+            findFileInFolder(historyId, filename),
+            findFileInFolder(adminTodayId, filename),
+            findFileInFolder(adminHistoryId, filename)
+        ]);
 
-        // Try History folder
-        if (historyId) {
-            const historySearch = await search(
-                `'${historyId}' in parents and name = '${filename}' and trashed = false`,
-                'files(id,name)'
-            );
-            if (historySearch.files && historySearch.files.length > 0) {
-                return historySearch.files[0];
-            }
-        }
+        // Return the first found file (priority: Today > History > Admin/Today > Admin/History)
+        return todayFile || historyFile || adminTodayFile || adminHistoryFile || null;
+    }
 
-        return null;
+    /**
+     * Find all matching files across all folders (for combining checklists)
+     */
+    async function findAllFiles(storeName, filename) {
+        const todayId = folderCache.get(`today_${storeName}`);
+        const historyId = folderCache.get(`history_${storeName}`);
+        const adminTodayId = folderCache.get(`admin_today_${storeName}`);
+        const adminHistoryId = folderCache.get(`admin_history_${storeName}`);
+
+        // Search all folders in parallel
+        const [todayFile, historyFile, adminTodayFile, adminHistoryFile] = await Promise.all([
+            findFileInFolder(todayId, filename),
+            findFileInFolder(historyId, filename),
+            findFileInFolder(adminTodayId, filename),
+            findFileInFolder(adminHistoryId, filename)
+        ]);
+
+        // Return all found files
+        return [todayFile, historyFile, adminTodayFile, adminHistoryFile].filter(f => f !== null);
     }
 
     /**
@@ -248,29 +302,34 @@ const Drive = (() => {
 
     /**
      * Get checklist data for a specific date
-     * Returns combined daily + weekly + monthly checklists
+     * Returns combined daily + weekly + monthly checklists from all folders
      */
     async function getChecklistForDate(storeName, dateStr) {
         const dailyFilename = `${dateStr}.json`;
         const weeklyFilename = `${getWeekStart(dateStr)}_weekly.json`;
         const monthlyFilename = `${getMonthStart(dateStr)}_monthly.json`;
 
-        // Search for all three files in parallel
-        const [dailyFile, weeklyFile, monthlyFile] = await Promise.all([
-            findFile(storeName, dailyFilename),
-            findFile(storeName, weeklyFilename),
-            findFile(storeName, monthlyFilename)
+        // Search for all files across all folders in parallel
+        const [dailyFiles, weeklyFiles, monthlyFiles] = await Promise.all([
+            findAllFiles(storeName, dailyFilename),
+            findAllFiles(storeName, weeklyFilename),
+            findAllFiles(storeName, monthlyFilename)
         ]);
 
-        // Download found files in parallel
-        const downloads = [];
-        if (dailyFile) downloads.push(downloadFile(dailyFile.id).then(data => ({ type: 'daily', data })));
-        if (weeklyFile) downloads.push(downloadFile(weeklyFile.id).then(data => ({ type: 'weekly', data })));
-        if (monthlyFile) downloads.push(downloadFile(monthlyFile.id).then(data => ({ type: 'monthly', data })));
+        // Collect all files to download
+        const allFiles = [...dailyFiles, ...weeklyFiles, ...monthlyFiles];
 
-        if (downloads.length === 0) {
+        if (allFiles.length === 0) {
             return null;
         }
+
+        // Download all found files in parallel
+        const downloads = allFiles.map(file =>
+            downloadFile(file.id).catch(err => {
+                console.error(`Error downloading ${file.name}:`, err);
+                return null;
+            })
+        );
 
         const results = await Promise.all(downloads);
 
@@ -280,7 +339,7 @@ const Drive = (() => {
             checklists: {}
         };
 
-        results.forEach(({ type, data }) => {
+        results.forEach(data => {
             if (data && data.checklists) {
                 Object.assign(combined.checklists, data.checklists);
             }
