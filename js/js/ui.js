@@ -193,13 +193,12 @@ const UI = (() => {
         const card = document.createElement('div');
         card.className = 'checklist-card' + (expanded ? ' expanded' : '');
 
-        // Header
+        // Header with type-based color
         const header = document.createElement('div');
-        header.className = 'checklist-header';
+        header.className = `checklist-header ${checklist.type}`;
         header.innerHTML = `
             <div>
                 <h3>${escapeHtml(checklist.name)}</h3>
-                <span class="category-badge ${checklist.type}">${checklist.type}</span>
             </div>
             <div class="checklist-progress">
                 <span>${checklist.stats.completed}/${checklist.stats.total}</span>
