@@ -22,7 +22,26 @@ const UI = (() => {
             loadingIndicator: document.getElementById('loading-indicator'),
             emptyState: document.getElementById('empty-state'),
             checklistContainer: document.getElementById('checklist-container'),
-            onlineStatus: document.getElementById('online-status')
+            onlineStatus: document.getElementById('online-status'),
+            // Navigation tabs
+            tabHistorial: document.getElementById('tab-historial'),
+            tabInventario: document.getElementById('tab-inventario'),
+            viewHistorial: document.getElementById('view-historial'),
+            viewInventario: document.getElementById('view-inventario'),
+            // Inventario elements
+            invFechaDesde: document.getElementById('inv-fecha-desde'),
+            invFechaHasta: document.getElementById('inv-fecha-hasta'),
+            invFiltrarBtn: document.getElementById('inv-filtrar-btn'),
+            invSoloDiferencias: document.getElementById('inv-solo-diferencias'),
+            invOcultarRevisados: document.getElementById('inv-ocultar-revisados'),
+            invStatTotal: document.getElementById('inv-stat-total'),
+            invStatPendientes: document.getElementById('inv-stat-pendientes'),
+            invStatRevisados: document.getElementById('inv-stat-revisados'),
+            invOkAllBtn: document.getElementById('inv-ok-all-btn'),
+            invLoading: document.getElementById('inv-loading'),
+            invEmptyState: document.getElementById('inv-empty-state'),
+            inventarioContainer: document.getElementById('inventario-container'),
+            inventarioTbody: document.getElementById('inventario-tbody')
         };
     }
 
@@ -325,6 +344,165 @@ const UI = (() => {
         }
     }
 
+    // ==================== INVENTARIO UI FUNCTIONS ====================
+
+    /**
+     * Switch between views (historial/inventario)
+     */
+    function switchView(viewName) {
+        const isHistorial = viewName === 'historial';
+
+        // Update tabs
+        elements.tabHistorial.classList.toggle('active', isHistorial);
+        elements.tabInventario.classList.toggle('active', !isHistorial);
+
+        // Update views
+        elements.viewHistorial.classList.toggle('hidden', !isHistorial);
+        elements.viewInventario.classList.toggle('hidden', isHistorial);
+    }
+
+    /**
+     * Show inventario loading state
+     */
+    function showInvLoading() {
+        elements.invLoading.classList.remove('hidden');
+        elements.invEmptyState.classList.add('hidden');
+        elements.inventarioContainer.classList.add('hidden');
+    }
+
+    /**
+     * Hide inventario loading state
+     */
+    function hideInvLoading() {
+        elements.invLoading.classList.add('hidden');
+    }
+
+    /**
+     * Show inventario empty state
+     */
+    function showInvEmptyState(message = 'Selecciona una tienda para ver el inventario') {
+        elements.invEmptyState.classList.remove('hidden');
+        elements.invEmptyState.querySelector('p').textContent = message;
+        elements.inventarioContainer.classList.add('hidden');
+    }
+
+    /**
+     * Hide inventario empty state
+     */
+    function hideInvEmptyState() {
+        elements.invEmptyState.classList.add('hidden');
+    }
+
+    /**
+     * Update inventario stats
+     */
+    function updateInvStats(stats) {
+        elements.invStatTotal.textContent = stats.total;
+        elements.invStatPendientes.textContent = stats.pendientes;
+        elements.invStatRevisados.textContent = stats.revisados;
+
+        // Enable/disable OK ALL button
+        elements.invOkAllBtn.disabled = stats.pendientes === 0;
+    }
+
+    /**
+     * Render inventario table
+     */
+    function renderInventarioTable(items, onOkClick) {
+        hideInvLoading();
+
+        if (!items || items.length === 0) {
+            showInvEmptyState('No hay discrepancias pendientes');
+            return;
+        }
+
+        hideInvEmptyState();
+        elements.inventarioContainer.classList.remove('hidden');
+        elements.inventarioTbody.innerHTML = '';
+
+        items.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.dataset.articulo = item.Articulo;
+
+            const diffClass = Inventario.getDiferenciaClass(item.Diferencia);
+            const fechaFormatted = Inventario.formatFecha(item.FechaHora);
+            // Use Descripcion if available, fallback to Articulo
+            const descripcion = item.Descripcion || item.Articulo;
+
+            tr.innerHTML = `
+                <td class="col-descripcion" title="${escapeHtml(item.Articulo)}">${escapeHtml(descripcion)}</td>
+                <td class="col-fecha">${escapeHtml(fechaFormatted)}</td>
+                <td class="col-sistema">${escapeHtml(item.StockSistema || '-')}</td>
+                <td class="col-fisico">${escapeHtml(item.StockFisico || '-')}</td>
+                <td class="col-diferencia ${diffClass}">${escapeHtml(item.Diferencia || '0')}</td>
+                <td class="col-accion">
+                    <button class="btn-ok" data-action="ok">OK</button>
+                </td>
+            `;
+
+            // Add click handler for OK button
+            const okBtn = tr.querySelector('.btn-ok');
+            if (okBtn) {
+                okBtn.addEventListener('click', () => {
+                    onOkClick(item.Articulo);
+                });
+            }
+
+            elements.inventarioTbody.appendChild(tr);
+        });
+    }
+
+    /**
+     * Remove a row from the table (item marked as done)
+     */
+    function removeRowFromTable(articulo) {
+        const rows = elements.inventarioTbody.querySelectorAll('tr');
+        rows.forEach(row => {
+            if (row.dataset.articulo === articulo) {
+                row.remove();
+            }
+        });
+
+        // Check if table is now empty
+        if (elements.inventarioTbody.children.length === 0) {
+            showInvEmptyState('No hay discrepancias pendientes');
+        }
+    }
+
+    /**
+     * Set default date filters (last 7 days)
+     */
+    function setDefaultDateFilters() {
+        const today = new Date();
+        const lastWeek = new Date(today);
+        lastWeek.setDate(lastWeek.getDate() - 7);
+
+        elements.invFechaHasta.value = formatDateForInput(today);
+        elements.invFechaDesde.value = formatDateForInput(lastWeek);
+    }
+
+    /**
+     * Format date for input[type=date]
+     */
+    function formatDateForInput(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    /**
+     * Get current filter values
+     */
+    function getInvFilterValues() {
+        return {
+            fechaDesde: elements.invFechaDesde.value || null,
+            fechaHasta: elements.invFechaHasta.value || null,
+            soloDiferencias: elements.invSoloDiferencias.checked,
+            ocultarRevisados: elements.invOcultarRevisados.checked
+        };
+    }
+
     // Public API
     return {
         init,
@@ -339,6 +517,17 @@ const UI = (() => {
         renderChecklists,
         showError,
         getElements,
-        setOnlineStatus
+        setOnlineStatus,
+        // Inventario UI functions
+        switchView,
+        showInvLoading,
+        hideInvLoading,
+        showInvEmptyState,
+        hideInvEmptyState,
+        updateInvStats,
+        renderInventarioTable,
+        removeRowFromTable,
+        setDefaultDateFilters,
+        getInvFilterValues
     };
 })();

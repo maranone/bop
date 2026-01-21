@@ -8,7 +8,9 @@ const App = (() => {
         currentYear: new Date().getFullYear(),
         currentMonth: new Date().getMonth(),
         selectedDate: null,
-        availableDates: []
+        availableDates: [],
+        currentView: 'historial', // 'historial' or 'inventario'
+        inventarioLoaded: false
     };
 
     // Auto-refresh state
@@ -103,6 +105,32 @@ const App = (() => {
                 }
             }
         });
+
+        // Navigation tabs
+        elements.tabHistorial.addEventListener('click', () => {
+            switchToView('historial');
+        });
+
+        elements.tabInventario.addEventListener('click', () => {
+            switchToView('inventario');
+        });
+
+        // Inventario event listeners
+        elements.invFiltrarBtn.addEventListener('click', () => {
+            refreshInventarioView();
+        });
+
+        elements.invSoloDiferencias.addEventListener('change', () => {
+            refreshInventarioView();
+        });
+
+        elements.invOcultarRevisados.addEventListener('change', () => {
+            refreshInventarioView();
+        });
+
+        elements.invOkAllBtn.addEventListener('click', async () => {
+            await handleOkAll();
+        });
     }
 
     /**
@@ -182,6 +210,7 @@ const App = (() => {
     async function selectStore(storeName) {
         stopAutoRefresh(); // Stop refresh when changing store
         state.selectedStore = storeName;
+        state.inventarioLoaded = false; // Reset inventario state when changing store
         localStorage.setItem('bop_selected_store', storeName);
 
         UI.showLoading();
@@ -318,6 +347,106 @@ const App = (() => {
             console.error('Auto-refresh error:', error);
             // Keep current data visible, just update online status
             UI.setOnlineStatus(false);
+        }
+    }
+
+    // ==================== INVENTARIO FUNCTIONS ====================
+
+    /**
+     * Switch between historial and inventario views
+     */
+    function switchToView(viewName) {
+        state.currentView = viewName;
+        UI.switchView(viewName);
+
+        if (viewName === 'inventario' && state.selectedStore && !state.inventarioLoaded) {
+            loadInventario();
+        }
+    }
+
+    /**
+     * Load inventario data
+     */
+    async function loadInventario() {
+        if (!state.selectedStore) {
+            UI.showInvEmptyState('Selecciona una tienda para ver el inventario');
+            return;
+        }
+
+        UI.showInvLoading();
+        UI.setDefaultDateFilters();
+
+        try {
+            await Inventario.loadInventario(state.selectedStore);
+            state.inventarioLoaded = true;
+            refreshInventarioView();
+            UI.setOnlineStatus(true);
+        } catch (error) {
+            console.error('Error loading inventario:', error);
+            UI.hideInvLoading();
+            UI.showInvEmptyState('Error al cargar inventario: ' + error.message);
+            UI.setOnlineStatus(false);
+        }
+    }
+
+    /**
+     * Refresh inventario view with current filters
+     */
+    function refreshInventarioView() {
+        const filters = UI.getInvFilterValues();
+        const filteredItems = Inventario.getFilteredItems(filters);
+        const stats = Inventario.getStats(filteredItems);
+
+        UI.updateInvStats(stats);
+        UI.renderInventarioTable(filteredItems, handleOkClick);
+    }
+
+    /**
+     * Handle OK click for a single item
+     * Removes the discrepancy from discrepancias.csv
+     */
+    async function handleOkClick(articulo) {
+        try {
+            await Inventario.marcarRevisado(articulo);
+            UI.removeRowFromTable(articulo);
+
+            // Update stats
+            const filters = UI.getInvFilterValues();
+            const filteredItems = Inventario.getFilteredItems(filters);
+            const stats = Inventario.getStats(filteredItems);
+            UI.updateInvStats(stats);
+        } catch (error) {
+            console.error('Error removing discrepancy:', error);
+            UI.showError('Error al marcar como revisado: ' + error.message);
+        }
+    }
+
+    /**
+     * Handle OK ALL button click
+     */
+    async function handleOkAll() {
+        const filters = UI.getInvFilterValues();
+        const filteredItems = Inventario.getFilteredItems(filters);
+        const pendingItems = filteredItems.filter(item => !item.revisado);
+
+        if (pendingItems.length === 0) {
+            return;
+        }
+
+        const confirmMsg = `Marcar ${pendingItems.length} articulos como revisados?`;
+        if (!confirm(confirmMsg)) {
+            return;
+        }
+
+        try {
+            const count = await Inventario.marcarTodosRevisados(pendingItems);
+            console.log(`Marked ${count} items as revisado`);
+
+            // Refresh view
+            refreshInventarioView();
+        } catch (error) {
+            console.error('Error marking all as revisado:', error);
+            UI.showError('Error al marcar todos como revisados: ' + error.message);
         }
     }
 

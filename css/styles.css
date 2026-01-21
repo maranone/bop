@@ -621,6 +621,340 @@ body {
     }
 }
 
+/* ==================== NAVIGATION TABS ==================== */
+
+.nav-tabs {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0 8px;
+}
+
+.nav-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 16px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    position: relative;
+    transition: color 0.2s ease;
+}
+
+.nav-tab:hover {
+    color: var(--text-primary);
+}
+
+.nav-tab.active {
+    color: var(--primary-color);
+}
+
+.nav-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--primary-color);
+    border-radius: 3px 3px 0 0;
+}
+
+.nav-tab svg {
+    flex-shrink: 0;
+}
+
+/* ==================== VIEW CONTAINERS ==================== */
+
+.view-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.view-container.hidden {
+    display: none;
+}
+
+/* ==================== INVENTARIO STYLES ==================== */
+
+.inventario-filter-section {
+    background: var(--surface);
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.filter-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.filter-row-secondary {
+    margin-top: 12px;
+    align-items: center;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 100px;
+}
+
+.filter-group label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.filter-input {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    font-size: 14px;
+    background: var(--surface);
+    color: var(--text-primary);
+}
+
+.filter-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.btn-filter {
+    padding: 8px 16px;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    white-space: nowrap;
+}
+
+.btn-filter:hover {
+    background: var(--primary-dark);
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.inventario-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    padding: 12px 16px;
+}
+
+.inventario-actions {
+    padding: 0 16px 12px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.btn-ok-all {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--success-color);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-ok-all:hover:not(:disabled) {
+    background: #2e7d32;
+}
+
+.btn-ok-all:disabled {
+    background: var(--text-disabled);
+    cursor: not-allowed;
+}
+
+.inventario-container {
+    flex: 1;
+    padding: 0 16px 16px;
+    overflow-x: auto;
+}
+
+.inventario-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    font-size: 13px;
+}
+
+.inventario-table thead {
+    background: var(--background);
+}
+
+.inventario-table th {
+    padding: 12px 8px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 12px;
+    text-transform: uppercase;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.inventario-table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+}
+
+.inventario-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.inventario-table tbody tr:hover {
+    background: var(--background);
+}
+
+.inventario-table tbody tr.revisado {
+    background: rgba(52, 168, 83, 0.08);
+}
+
+.inventario-table tbody tr.revisado td {
+    color: var(--text-secondary);
+}
+
+.col-articulo {
+    font-weight: 500;
+    font-family: monospace;
+}
+
+.col-fecha {
+    white-space: nowrap;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.col-sistema,
+.col-fisico {
+    text-align: center;
+    font-family: monospace;
+}
+
+.col-diferencia {
+    text-align: center;
+    font-weight: 600;
+    font-family: monospace;
+}
+
+.col-diferencia.diff-positive {
+    color: var(--success-color);
+}
+
+.col-diferencia.diff-negative {
+    color: var(--error-color);
+}
+
+.col-diferencia.diff-zero {
+    color: var(--text-disabled);
+}
+
+.col-accion {
+    text-align: center;
+    width: 70px;
+}
+
+.btn-ok {
+    padding: 6px 14px;
+    background: var(--success-color);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-ok:hover {
+    background: #2e7d32;
+    transform: scale(1.05);
+}
+
+.btn-ok:active {
+    transform: scale(0.95);
+}
+
+.badge-revisado {
+    display: inline-block;
+    padding: 4px 10px;
+    background: rgba(52, 168, 83, 0.15);
+    color: var(--success-color);
+    border-radius: var(--radius);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* Responsive inventario */
+@media (max-width: 500px) {
+    .filter-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-group {
+        min-width: auto;
+    }
+
+    .btn-filter {
+        width: 100%;
+    }
+
+    .inventario-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .inventario-table {
+        font-size: 12px;
+    }
+
+    .inventario-table th,
+    .inventario-table td {
+        padding: 8px 6px;
+    }
+
+    .col-articulo {
+        max-width: 100px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
     :root {

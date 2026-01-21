@@ -3,7 +3,8 @@
 const Auth = (() => {
     // IMPORTANT: Replace with your actual Client ID from Google Cloud Console
     const CLIENT_ID = '72934616864-us9kq904oegif80guvg4nm7rr3aahlec.apps.googleusercontent.com';
-    const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
+    // Need full drive access to modify files created by other apps (Python inventory program)
+    const SCOPES = 'https://www.googleapis.com/auth/drive';
 
     let tokenClient = null;
     let accessToken = null;

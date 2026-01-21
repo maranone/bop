@@ -380,12 +380,219 @@ const Drive = (() => {
         folderCache.clear();
     }
 
+    // ==================== INVENTARIO FUNCTIONS ====================
+
+    /**
+     * Find Inventario folder for a store
+     * Structure: BOP/{storeName}/Inventario/
+     * Note: Folder is created by the inventory program, not by the PWA
+     */
+    async function findInventarioFolder(storeName) {
+        const storeId = folderCache.get(`store_${storeName}`);
+        if (!storeId) {
+            throw new Error('Store folder not found');
+        }
+
+        // Check cache first
+        const cachedId = folderCache.get(`inventario_${storeName}`);
+        if (cachedId) {
+            return cachedId;
+        }
+
+        // Search for existing Inventario folder
+        const result = await search(
+            `'${storeId}' in parents and name = 'Inventario' and mimeType = '${FOLDER_MIME}' and trashed = false`
+        );
+
+        if (result.files && result.files.length > 0) {
+            folderCache.set(`inventario_${storeName}`, result.files[0].id);
+            return result.files[0].id;
+        }
+
+        // Folder doesn't exist - will be created by inventory program
+        return null;
+    }
+
+    /**
+     * Find or create Inventario folder for a store (creates if needed for revisados.json)
+     */
+    async function findOrCreateInventarioFolder(storeName) {
+        const existingId = await findInventarioFolder(storeName);
+        if (existingId) {
+            return existingId;
+        }
+
+        // Create folder if not exists (for storing revisados.json)
+        const storeId = folderCache.get(`store_${storeName}`);
+        const token = Auth.getToken();
+        const createResponse = await fetch(`${API_BASE}/files`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: 'Inventario',
+                mimeType: FOLDER_MIME,
+                parents: [storeId]
+            })
+        });
+
+        if (!createResponse.ok) {
+            throw new Error('Failed to create Inventario folder');
+        }
+
+        const newFolder = await createResponse.json();
+        folderCache.set(`inventario_${storeName}`, newFolder.id);
+        return newFolder.id;
+    }
+
+    /**
+     * Get discrepancias.csv content from Inventario folder
+     * This file contains only items with stock differences pending admin review
+     */
+    async function getDiscrepancias(storeName) {
+        const inventarioId = await findOrCreateInventarioFolder(storeName);
+
+        // Find discrepancias.csv file
+        const result = await search(
+            `'${inventarioId}' in parents and name = 'discrepancias.csv' and trashed = false`,
+            'files(id,name,modifiedTime)'
+        );
+
+        if (!result.files || result.files.length === 0) {
+            return null;
+        }
+
+        // Download file content as text
+        const token = Auth.getToken();
+        const response = await fetch(
+            `${API_BASE}/files/${result.files[0].id}?alt=media`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error('Failed to download discrepancias.csv');
+        }
+
+        return response.text();
+    }
+
+    /**
+     * Remove an item from discrepancias.csv (mark as "done" by admin)
+     * This downloads the CSV, removes the row for the given articulo, and re-uploads
+     */
+    async function removeDiscrepancia(storeName, articulo) {
+        const inventarioId = await findOrCreateInventarioFolder(storeName);
+        const token = Auth.getToken();
+
+        // Find discrepancias.csv file
+        const result = await search(
+            `'${inventarioId}' in parents and name = 'discrepancias.csv' and trashed = false`,
+            'files(id,name)'
+        );
+
+        if (!result.files || result.files.length === 0) {
+            // File doesn't exist, nothing to remove
+            console.log('discrepancias.csv not found, nothing to remove');
+            return true;
+        }
+
+        const fileId = result.files[0].id;
+
+        // Download current content
+        const downloadResponse = await fetch(
+            `${API_BASE}/files/${fileId}?alt=media`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            }
+        );
+
+        if (!downloadResponse.ok) {
+            const errorText = await downloadResponse.text();
+            console.error('Download error:', errorText);
+            throw new Error('Failed to download discrepancias.csv');
+        }
+
+        const csvContent = await downloadResponse.text();
+        console.log('Downloaded CSV content:', csvContent.substring(0, 200));
+
+        // Parse CSV and filter out the articulo
+        const lines = csvContent.trim().split('\n');
+        if (lines.length < 2) {
+            console.log('CSV has only header or is empty');
+            return true; // Only header or empty, nothing to remove
+        }
+
+        const header = lines[0];
+        const filteredLines = [header];
+
+        // Find the Articulo column index
+        const headerCols = header.split(',').map(h => h.trim().replace(/^\uFEFF/, ''));
+        const articuloIndex = headerCols.findIndex(h => h === 'Articulo');
+
+        console.log('Header columns:', headerCols, 'Articulo index:', articuloIndex);
+
+        if (articuloIndex === -1) {
+            throw new Error('Articulo column not found in discrepancias.csv');
+        }
+
+        // Filter out rows matching the articulo
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+
+            const cols = line.split(',');
+            const rowArticulo = cols[articuloIndex] ? cols[articuloIndex].trim() : '';
+
+            if (rowArticulo !== String(articulo)) {
+                filteredLines.push(line);
+            } else {
+                console.log('Removing row for articulo:', articulo);
+            }
+        }
+
+        // Re-upload the filtered CSV with BOM for UTF-8
+        const newContent = '\uFEFF' + filteredLines.join('\n');
+
+        const updateResponse = await fetch(
+            `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
+            {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'text/csv; charset=utf-8'
+                },
+                body: newContent
+            }
+        );
+
+        if (!updateResponse.ok) {
+            const errorData = await updateResponse.json().catch(() => ({}));
+            console.error('Update error:', updateResponse.status, errorData);
+            throw new Error(`Failed to update discrepancias.csv: ${errorData.error?.message || updateResponse.status}`);
+        }
+
+        console.log('Successfully updated discrepancias.csv');
+        return true;
+    }
+
     // Public API
     return {
         findStores,
         getStoreFolders,
         listAvailableDates,
         getChecklistForDate,
-        clearCache
+        clearCache,
+        // Inventario functions
+        findOrCreateInventarioFolder,
+        getDiscrepancias,
+        removeDiscrepancia
     };
 })();

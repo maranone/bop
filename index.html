@@ -53,7 +53,7 @@
                 <select id="store-selector" class="store-select">
                     <option value="">Seleccionar tienda...</option>
                 </select>
-                <button id="logout-btn" class="btn-icon" title="Cerrar sesión">
+                <button id="logout-btn" class="btn-icon" title="Cerrar sesion">
                     <svg viewBox="0 0 24 24" width="24" height="24">
                         <path fill="currentColor" d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
                     </svg>
@@ -61,61 +61,164 @@
             </div>
         </header>
 
-        <!-- Calendar Section -->
-        <section class="calendar-section">
-            <div class="calendar-header">
-                <button id="prev-month" class="btn-icon">
-                    <svg viewBox="0 0 24 24" width="24" height="24">
-                        <path fill="currentColor" d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
-                    </svg>
-                </button>
-                <h2 id="current-month">Enero 2026</h2>
-                <button id="next-month" class="btn-icon">
-                    <svg viewBox="0 0 24 24" width="24" height="24">
-                        <path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
-                    </svg>
-                </button>
-            </div>
-            <div class="calendar-grid">
-                <div class="calendar-weekdays">
-                    <span>L</span>
-                    <span>M</span>
-                    <span>X</span>
-                    <span>J</span>
-                    <span>V</span>
-                    <span>S</span>
-                    <span>D</span>
-                </div>
-                <div id="calendar-days" class="calendar-days">
-                    <!-- Days will be rendered here -->
-                </div>
-            </div>
-        </section>
-
-        <!-- Content Section -->
-        <section id="content-section" class="content-section">
-            <div id="loading-indicator" class="loading hidden">
-                <div class="spinner"></div>
-                <p>Cargando...</p>
-            </div>
-
-            <div id="empty-state" class="empty-state">
-                <svg viewBox="0 0 24 24" width="64" height="64">
-                    <path fill="#ccc" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+            <button id="tab-historial" class="nav-tab active" data-view="historial">
+                <svg viewBox="0 0 24 24" width="20" height="20">
+                    <path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
                 </svg>
-                <p>Selecciona una fecha para ver los checklists</p>
+                Historial
+            </button>
+            <button id="tab-inventario" class="nav-tab" data-view="inventario">
+                <svg viewBox="0 0 24 24" width="20" height="20">
+                    <path fill="currentColor" d="M20 2H4c-1 0-2 .9-2 2v3.01c0 .72.43 1.34 1 1.69V20c0 1.1 1.1 2 2 2h14c.9 0 2-.9 2-2V8.7c.57-.35 1-.97 1-1.69V4c0-1.1-1-2-2-2zm-5 12H9v-2h6v2zm5-7H4V4h16v3z"/>
+                </svg>
+                Inventario
+            </button>
+        </nav>
+
+        <!-- Historial View -->
+        <div id="view-historial" class="view-container">
+            <!-- Calendar Section -->
+            <section class="calendar-section">
+                <div class="calendar-header">
+                    <button id="prev-month" class="btn-icon">
+                        <svg viewBox="0 0 24 24" width="24" height="24">
+                            <path fill="currentColor" d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                        </svg>
+                    </button>
+                    <h2 id="current-month">Enero 2026</h2>
+                    <button id="next-month" class="btn-icon">
+                        <svg viewBox="0 0 24 24" width="24" height="24">
+                            <path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="calendar-grid">
+                    <div class="calendar-weekdays">
+                        <span>L</span>
+                        <span>M</span>
+                        <span>X</span>
+                        <span>J</span>
+                        <span>V</span>
+                        <span>S</span>
+                        <span>D</span>
+                    </div>
+                    <div id="calendar-days" class="calendar-days">
+                        <!-- Days will be rendered here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Content Section -->
+            <section id="content-section" class="content-section">
+                <div id="loading-indicator" class="loading hidden">
+                    <div class="spinner"></div>
+                    <p>Cargando...</p>
+                </div>
+
+                <div id="empty-state" class="empty-state">
+                    <svg viewBox="0 0 24 24" width="64" height="64">
+                        <path fill="#ccc" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                    </svg>
+                    <p>Selecciona una fecha para ver los checklists</p>
+                </div>
+
+                <div id="checklist-container" class="checklist-container hidden">
+                    <!-- Checklists will be rendered here -->
+                </div>
+            </section>
+        </div>
+
+        <!-- Inventario View -->
+        <div id="view-inventario" class="view-container hidden">
+            <!-- Date Filter Section -->
+            <section class="inventario-filter-section">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label for="inv-fecha-desde">Desde</label>
+                        <input type="date" id="inv-fecha-desde" class="filter-input">
+                    </div>
+                    <div class="filter-group">
+                        <label for="inv-fecha-hasta">Hasta</label>
+                        <input type="date" id="inv-fecha-hasta" class="filter-input">
+                    </div>
+                    <button id="inv-filtrar-btn" class="btn-filter">Filtrar</button>
+                </div>
+                <div class="filter-row filter-row-secondary">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="inv-solo-diferencias">
+                        Solo con diferencias
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="inv-ocultar-revisados">
+                        Ocultar revisados
+                    </label>
+                </div>
+            </section>
+
+            <!-- Inventario Stats -->
+            <section class="inventario-stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="inv-stat-total">0</div>
+                    <div class="stat-label">Total</div>
+                </div>
+                <div class="stat-card pending">
+                    <div class="stat-value" id="inv-stat-pendientes">0</div>
+                    <div class="stat-label">Pendientes</div>
+                </div>
+                <div class="stat-card completed">
+                    <div class="stat-value" id="inv-stat-revisados">0</div>
+                    <div class="stat-label">Revisados</div>
+                </div>
+            </section>
+
+            <!-- OK All Button -->
+            <div class="inventario-actions">
+                <button id="inv-ok-all-btn" class="btn-ok-all" disabled>
+                    <svg viewBox="0 0 24 24" width="20" height="20">
+                        <path fill="currentColor" d="M18 7l-1.41-1.41-6.34 6.34 1.41 1.41L18 7zm4.24-1.41L11.66 16.17 7.48 12l-1.41 1.41L11.66 19l12-12-1.42-1.41zM.41 13.41L6 19l1.41-1.41L1.83 12 .41 13.41z"/>
+                    </svg>
+                    OK ALL Pendientes
+                </button>
             </div>
 
-            <div id="checklist-container" class="checklist-container hidden">
-                <!-- Checklists will be rendered here -->
+            <!-- Loading for inventario -->
+            <div id="inv-loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p>Cargando inventario...</p>
             </div>
-        </section>
+
+            <!-- Empty state for inventario (hidden by default) -->
+            <div id="inv-empty-state" class="empty-state hidden">
+            </div>
+
+            <!-- Inventario Table -->
+            <div id="inventario-container" class="inventario-container hidden">
+                <table class="inventario-table">
+                    <thead>
+                        <tr>
+                            <th>Descripción</th>
+                            <th>Fecha</th>
+                            <th>Bitronic</th>
+                            <th>Contado</th>
+                            <th>Dif.</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventario-tbody">
+                        <!-- Inventory rows will be rendered here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <!-- Scripts -->
     <script src="js/auth.js"></script>
     <script src="js/drive.js"></script>
     <script src="js/checklist.js"></script>
+    <script src="js/inventario.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/app.js"></script>
 </body>
