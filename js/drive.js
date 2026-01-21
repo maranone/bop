@@ -153,55 +153,54 @@ const Drive = (() => {
     }
 
     /**
+     * List all JSON files from a folder
+     */
+    async function listJsonFiles(folderId) {
+        if (!folderId) return [];
+
+        const result = await search(
+            `'${folderId}' in parents and name contains '.json' and trashed = false`,
+            'files(id,name,modifiedTime)'
+        );
+
+        return result.files || [];
+    }
+
+    /**
      * List available dates (JSON files) for a store
+     * Includes daily, weekly, and monthly files
      */
     async function listAvailableDates(storeName) {
         const todayId = folderCache.get(`today_${storeName}`);
         const historyId = folderCache.get(`history_${storeName}`);
 
         const dates = new Set();
+        const allFiles = [];
 
-        // Get files from Today folder
-        if (todayId) {
-            const todayFiles = await search(
-                `'${todayId}' in parents and name contains '.json' and trashed = false`,
-                'files(id,name,modifiedTime)'
-            );
+        // Get files from Today and History folders
+        const todayFiles = await listJsonFiles(todayId);
+        const historyFiles = await listJsonFiles(historyId);
 
-            (todayFiles.files || []).forEach(file => {
-                const dateName = file.name.replace('.json', '');
-                if (/^\d{4}-\d{2}-\d{2}$/.test(dateName)) {
-                    dates.add(dateName);
-                }
-            });
-        }
+        allFiles.push(...todayFiles, ...historyFiles);
 
-        // Get files from History folder
-        if (historyId) {
-            const historyFiles = await search(
-                `'${historyId}' in parents and name contains '.json' and trashed = false`,
-                'files(id,name,modifiedTime)'
-            );
-
-            (historyFiles.files || []).forEach(file => {
-                const dateName = file.name.replace('.json', '');
-                if (/^\d{4}-\d{2}-\d{2}$/.test(dateName)) {
-                    dates.add(dateName);
-                }
-            });
-        }
+        // Extract dates from filenames (daily files only for calendar display)
+        allFiles.forEach(file => {
+            // Match daily files: YYYY-MM-DD.json
+            const dailyMatch = file.name.match(/^(\d{4}-\d{2}-\d{2})\.json$/);
+            if (dailyMatch) {
+                dates.add(dailyMatch[1]);
+            }
+        });
 
         return Array.from(dates).sort().reverse();
     }
 
     /**
-     * Get checklist data for a specific date
+     * Find a file in Today or History folders
      */
-    async function getChecklistForDate(storeName, dateStr) {
+    async function findFile(storeName, filename) {
         const todayId = folderCache.get(`today_${storeName}`);
         const historyId = folderCache.get(`history_${storeName}`);
-
-        const filename = `${dateStr}.json`;
 
         // Try Today folder first
         if (todayId) {
@@ -209,9 +208,8 @@ const Drive = (() => {
                 `'${todayId}' in parents and name = '${filename}' and trashed = false`,
                 'files(id,name)'
             );
-
             if (todaySearch.files && todaySearch.files.length > 0) {
-                return downloadFile(todaySearch.files[0].id);
+                return todaySearch.files[0];
             }
         }
 
@@ -221,13 +219,74 @@ const Drive = (() => {
                 `'${historyId}' in parents and name = '${filename}' and trashed = false`,
                 'files(id,name)'
             );
-
             if (historySearch.files && historySearch.files.length > 0) {
-                return downloadFile(historySearch.files[0].id);
+                return historySearch.files[0];
             }
         }
 
         return null;
+    }
+
+    /**
+     * Get the Monday of the week for a given date
+     */
+    function getWeekStart(dateStr) {
+        const date = new Date(dateStr + 'T00:00:00');
+        const day = date.getDay();
+        const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
+        const monday = new Date(date.setDate(diff));
+        return monday.toISOString().split('T')[0];
+    }
+
+    /**
+     * Get the first day of the month for a given date
+     */
+    function getMonthStart(dateStr) {
+        const date = new Date(dateStr + 'T00:00:00');
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
+    }
+
+    /**
+     * Get checklist data for a specific date
+     * Returns combined daily + weekly + monthly checklists
+     */
+    async function getChecklistForDate(storeName, dateStr) {
+        const dailyFilename = `${dateStr}.json`;
+        const weeklyFilename = `${getWeekStart(dateStr)}_weekly.json`;
+        const monthlyFilename = `${getMonthStart(dateStr)}_monthly.json`;
+
+        // Search for all three files in parallel
+        const [dailyFile, weeklyFile, monthlyFile] = await Promise.all([
+            findFile(storeName, dailyFilename),
+            findFile(storeName, weeklyFilename),
+            findFile(storeName, monthlyFilename)
+        ]);
+
+        // Download found files in parallel
+        const downloads = [];
+        if (dailyFile) downloads.push(downloadFile(dailyFile.id).then(data => ({ type: 'daily', data })));
+        if (weeklyFile) downloads.push(downloadFile(weeklyFile.id).then(data => ({ type: 'weekly', data })));
+        if (monthlyFile) downloads.push(downloadFile(monthlyFile.id).then(data => ({ type: 'monthly', data })));
+
+        if (downloads.length === 0) {
+            return null;
+        }
+
+        const results = await Promise.all(downloads);
+
+        // Combine all checklists into one object
+        const combined = {
+            date: dateStr,
+            checklists: {}
+        };
+
+        results.forEach(({ type, data }) => {
+            if (data && data.checklists) {
+                Object.assign(combined.checklists, data.checklists);
+            }
+        });
+
+        return Object.keys(combined.checklists).length > 0 ? combined : null;
     }
 
     /**
