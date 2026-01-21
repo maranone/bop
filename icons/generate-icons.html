@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate PWA Icons</title>
+</head>
+<body>
+    <h1>PWA Icon Generator</h1>
+    <p>Right-click on each image and save as PNG:</p>
+
+    <h2>192x192</h2>
+    <canvas id="icon192" width="192" height="192"></canvas>
+
+    <h2>512x512</h2>
+    <canvas id="icon512" width="512" height="512"></canvas>
+
+    <script>
+        function drawIcon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+            const scale = size / 192;
+
+            // Background
+            ctx.fillStyle = '#1a73e8';
+            roundRect(ctx, 0, 0, size, size, 32 * scale);
+            ctx.fill();
+
+            // Document background
+            ctx.fillStyle = '#ffffff';
+            roundRect(ctx, 32 * scale, 32 * scale, 128 * scale, 112 * scale, 8 * scale);
+            ctx.fill();
+
+            // Lines
+            ctx.fillStyle = '#1a73e8';
+            ctx.fillRect(44 * scale, 48 * scale, 104 * scale, 8 * scale);
+            ctx.fillRect(44 * scale, 68 * scale, 72 * scale, 8 * scale);
+            ctx.fillRect(44 * scale, 88 * scale, 104 * scale, 8 * scale);
+            ctx.fillRect(44 * scale, 108 * scale, 56 * scale, 8 * scale);
+
+            // Checkmark circle
+            ctx.fillStyle = '#34a853';
+            ctx.beginPath();
+            ctx.arc(144 * scale, 144 * scale, 36 * scale, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Checkmark
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 6 * scale;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(128 * scale, 144 * scale);
+            ctx.lineTo(140 * scale, 156 * scale);
+            ctx.lineTo(160 * scale, 132 * scale);
+            ctx.stroke();
+        }
+
+        function roundRect(ctx, x, y, width, height, radius) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+        }
+
+        // Draw icons
+        drawIcon(document.getElementById('icon192'), 192);
+        drawIcon(document.getElementById('icon512'), 512);
+
+        // Log data URLs
+        console.log('192px:', document.getElementById('icon192').toDataURL('image/png'));
+        console.log('512px:', document.getElementById('icon512').toDataURL('image/png'));
+    </script>
+</body>
+</html>
