@@ -285,19 +285,23 @@ const Drive = (() => {
      * Get the Monday of the week for a given date
      */
     function getWeekStart(dateStr) {
-        const date = new Date(dateStr + 'T00:00:00');
-        const day = date.getDay();
-        const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
-        const monday = new Date(date.setDate(diff));
-        return monday.toISOString().split('T')[0];
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        const dayOfWeek = date.getDay();
+        const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        date.setDate(date.getDate() + diff);
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
     }
 
     /**
      * Get the first day of the month for a given date
      */
     function getMonthStart(dateStr) {
-        const date = new Date(dateStr + 'T00:00:00');
-        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
+        const [year, month] = dateStr.split('-').map(Number);
+        return `${year}-${String(month).padStart(2, '0')}-01`;
     }
 
     /**

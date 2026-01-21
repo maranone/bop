@@ -11,6 +11,10 @@ const App = (() => {
         availableDates: []
     };
 
+    // Auto-refresh state
+    let refreshInterval = null;
+    const REFRESH_INTERVAL_MS = 30000; // 30 seconds
+
     /**
      * Initialize the application
      */
@@ -124,6 +128,7 @@ const App = (() => {
      */
     function handleLogout() {
         console.log('Logged out');
+        stopAutoRefresh();
         state = {
             stores: [],
             selectedStore: null,
@@ -175,6 +180,7 @@ const App = (() => {
      * Select a store
      */
     async function selectStore(storeName) {
+        stopAutoRefresh(); // Stop refresh when changing store
         state.selectedStore = storeName;
         localStorage.setItem('bop_selected_store', storeName);
 
@@ -256,14 +262,62 @@ const App = (() => {
             if (data) {
                 const parsedData = Checklist.parse(data);
                 UI.renderChecklists(parsedData);
+                UI.setOnlineStatus(true);
+                // Start auto-refresh after successful load
+                startAutoRefresh();
             } else {
                 UI.hideLoading();
                 UI.showEmptyState('No hay datos para esta fecha');
+                stopAutoRefresh();
             }
         } catch (error) {
             console.error('Error loading checklist:', error);
             UI.hideLoading();
             UI.showError('Error al cargar checklists: ' + error.message);
+            UI.setOnlineStatus(false);
+            stopAutoRefresh();
+        }
+    }
+
+    /**
+     * Start auto-refresh interval
+     */
+    function startAutoRefresh() {
+        stopAutoRefresh(); // Clear previous interval if exists
+        if (state.selectedDate) {
+            refreshInterval = setInterval(async () => {
+                await refreshCurrentDate();
+            }, REFRESH_INTERVAL_MS);
+        }
+    }
+
+    /**
+     * Stop auto-refresh interval
+     */
+    function stopAutoRefresh() {
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+            refreshInterval = null;
+        }
+    }
+
+    /**
+     * Refresh current date data without showing loading indicator
+     */
+    async function refreshCurrentDate() {
+        if (!state.selectedStore || !state.selectedDate) return;
+
+        try {
+            const data = await Drive.getChecklistForDate(state.selectedStore, state.selectedDate);
+            if (data) {
+                const parsedData = Checklist.parse(data);
+                UI.renderChecklists(parsedData);
+                UI.setOnlineStatus(true);
+            }
+        } catch (error) {
+            console.error('Auto-refresh error:', error);
+            // Keep current data visible, just update online status
+            UI.setOnlineStatus(false);
         }
     }
 

@@ -21,7 +21,8 @@ const UI = (() => {
             contentSection: document.getElementById('content-section'),
             loadingIndicator: document.getElementById('loading-indicator'),
             emptyState: document.getElementById('empty-state'),
-            checklistContainer: document.getElementById('checklist-container')
+            checklistContainer: document.getElementById('checklist-container'),
+            onlineStatus: document.getElementById('online-status')
         };
     }
 
@@ -193,13 +194,12 @@ const UI = (() => {
         const card = document.createElement('div');
         card.className = 'checklist-card' + (expanded ? ' expanded' : '');
 
-        // Header
+        // Header with type-based color
         const header = document.createElement('div');
-        header.className = 'checklist-header';
+        header.className = `checklist-header ${checklist.type}`;
         header.innerHTML = `
             <div>
                 <h3>${escapeHtml(checklist.name)}</h3>
-                <span class="category-badge ${checklist.type}">${checklist.type}</span>
             </div>
             <div class="checklist-progress">
                 <span>${checklist.stats.completed}/${checklist.stats.total}</span>
@@ -314,6 +314,17 @@ const UI = (() => {
         return elements;
     }
 
+    /**
+     * Set online status indicator
+     */
+    function setOnlineStatus(isOnline) {
+        if (elements.onlineStatus) {
+            elements.onlineStatus.classList.toggle('online', isOnline);
+            elements.onlineStatus.classList.toggle('offline', !isOnline);
+            elements.onlineStatus.title = isOnline ? 'Conectado' : 'Sin conexion';
+        }
+    }
+
     // Public API
     return {
         init,
@@ -327,6 +338,7 @@ const UI = (() => {
         renderCalendar,
         renderChecklists,
         showError,
-        getElements
+        getElements,
+        setOnlineStatus
     };
 })();
