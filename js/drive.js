@@ -262,6 +262,7 @@ const Drive = (() => {
 
     /**
      * Find all matching files across all folders (for combining checklists)
+     * Returns files with isAdmin flag to allow proper ordering
      */
     async function findAllFiles(storeName, filename) {
         const todayId = folderCache.get(`today_${storeName}`);
@@ -277,8 +278,13 @@ const Drive = (() => {
             findFileInFolder(adminHistoryId, filename)
         ]);
 
-        // Return all found files
-        return [todayFile, historyFile, adminTodayFile, adminHistoryFile].filter(f => f !== null);
+        // Return all found files with isAdmin flag
+        const results = [];
+        if (todayFile) results.push({ ...todayFile, isAdmin: false });
+        if (historyFile) results.push({ ...historyFile, isAdmin: false });
+        if (adminTodayFile) results.push({ ...adminTodayFile, isAdmin: true });
+        if (adminHistoryFile) results.push({ ...adminHistoryFile, isAdmin: true });
+        return results;
     }
 
     /**
@@ -313,6 +319,8 @@ const Drive = (() => {
         const weeklyFilename = `${getWeekStart(dateStr)}_weekly.json`;
         const monthlyFilename = `${getMonthStart(dateStr)}_monthly.json`;
 
+        console.log('Looking for files:', { dailyFilename, weeklyFilename, monthlyFilename });
+
         // Search for all files across all folders in parallel
         const [dailyFiles, weeklyFiles, monthlyFiles] = await Promise.all([
             findAllFiles(storeName, dailyFilename),
@@ -320,32 +328,45 @@ const Drive = (() => {
             findAllFiles(storeName, monthlyFilename)
         ]);
 
-        // Collect all files to download
+        console.log('Found files:', {
+            daily: dailyFiles.map(f => f.name),
+            weekly: weeklyFiles.map(f => f.name),
+            monthly: monthlyFiles.map(f => f.name)
+        });
+
+        // Collect all files to download (maintaining isAdmin flag)
         const allFiles = [...dailyFiles, ...weeklyFiles, ...monthlyFiles];
 
         if (allFiles.length === 0) {
             return null;
         }
 
-        // Download all found files in parallel
+        // Download all found files in parallel, keeping track of isAdmin
         const downloads = allFiles.map(file =>
-            downloadFile(file.id).catch(err => {
-                console.error(`Error downloading ${file.name}:`, err);
-                return null;
-            })
+            downloadFile(file.id)
+                .then(data => ({ data, isAdmin: file.isAdmin }))
+                .catch(err => {
+                    console.error(`Error downloading ${file.name}:`, err);
+                    return null;
+                })
         );
 
         const results = await Promise.all(downloads);
 
-        // Combine all checklists into one object
+        // Combine all checklists, marking admin ones with _isAdmin property
         const combined = {
             date: dateStr,
             checklists: {}
         };
 
-        results.forEach(data => {
-            if (data && data.checklists) {
-                Object.assign(combined.checklists, data.checklists);
+        results.forEach(result => {
+            if (result && result.data && result.data.checklists) {
+                for (const [name, checklist] of Object.entries(result.data.checklists)) {
+                    combined.checklists[name] = {
+                        ...checklist,
+                        _isAdmin: result.isAdmin
+                    };
+                }
             }
         });
 

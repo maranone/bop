@@ -60,6 +60,7 @@ const Checklist = (() => {
             const parsedChecklist = {
                 name,
                 type: getChecklistType(name),
+                isAdmin: checklist._isAdmin || false,
                 items: items.map(item => ({
                     text: item.text,
                     completed: item.completed,
@@ -83,8 +84,15 @@ const Checklist = (() => {
             result.stats.pending += items.length - completedItems.length;
         }
 
-        // Sort checklists by name (to maintain order like 1D, 2D, etc.)
-        result.checklists.sort((a, b) => a.name.localeCompare(b.name));
+        // Sort checklists: non-admin first (sorted by name), then admin (sorted by name)
+        result.checklists.sort((a, b) => {
+            // First separate by admin status
+            if (a.isAdmin !== b.isAdmin) {
+                return a.isAdmin ? 1 : -1; // non-admin first
+            }
+            // Then sort by name within each group
+            return a.name.localeCompare(b.name);
+        });
 
         // Calculate overall percentage
         result.stats.percentage = result.stats.total > 0
