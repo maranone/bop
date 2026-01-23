@@ -380,9 +380,9 @@ const UI = (() => {
     /**
      * Show inventario empty state
      */
-    function showInvEmptyState(message = 'Selecciona una tienda para ver el inventario') {
+    function showInvEmptyState(message = 'No hay discrepancias pendientes') {
         elements.invEmptyState.classList.remove('hidden');
-        elements.invEmptyState.querySelector('p').textContent = message;
+        elements.invEmptyState.textContent = message;
         elements.inventarioContainer.classList.add('hidden');
     }
 

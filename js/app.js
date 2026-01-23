@@ -188,10 +188,13 @@ const App = (() => {
             const savedStore = localStorage.getItem('bop_selected_store');
             UI.updateStoreSelector(state.stores, savedStore);
 
-            // Auto-select store if previously selected or only one available
+            // Auto-select store: saved > default 53 > first available
+            const DEFAULT_STORE = '53';
             if (savedStore && state.stores.find(s => s.name === savedStore)) {
                 await selectStore(savedStore);
-            } else if (state.stores.length === 1) {
+            } else if (state.stores.find(s => s.name === DEFAULT_STORE)) {
+                await selectStore(DEFAULT_STORE);
+            } else if (state.stores.length >= 1) {
                 await selectStore(state.stores[0].name);
             } else {
                 UI.hideLoading();
